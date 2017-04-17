@@ -6,6 +6,8 @@ in pkgs.stdenv.mkDerivation {
   src = ./Main.hs;
   buildInputs = [ ghc ];
   buildCommand = ''
-    ghc -threaded -rtsopts $src -o main
+    mkdir -p $out/bin
+    ghc -Wall -threaded -rtsopts $src -o main
+    cp main $out/bin/
   '';
 }

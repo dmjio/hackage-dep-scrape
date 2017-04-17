@@ -10,11 +10,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import Control.Exception
-import Control.Concurrent.Async
-import Control.Concurrent.MVar
-import Control.Concurrent.Chan
 import Control.Concurrent
+import Control.Concurrent.Async
+import Control.Concurrent.Chan
+import Control.Concurrent.MVar
+import Control.Exception
 import Control.Lens ((^..), (^.), only, ix, toListOf, (^?), to, (&), (.~))
 import Control.Monad
 import Data.Aeson
@@ -58,23 +58,27 @@ getDeps (Pkg name) = do
            . allNamed (only "li")
            . allNamed (only "a")
            . children
-           . to dep
-   where
-     dep = map $ \(NodeContent x) -> Dep x
+           . to (map $ \(NodeContent x) -> Dep x)
 
 hasUnix :: [Dep] -> Bool
 hasUnix = any (== Dep "unix")
 
+secs = (*1000000)
+
 main :: IO ()
 main = do
+  putStrLn "Starting package fetch...."
   mvar <- newMVar []
   pkgs <- getPkgs
-  forM_ pkgs $ \pkg -> do
+  forConcurrently_ pkgs $ \pkg -> do
+    threadDelay (secs 1)
     result <- try (getDeps pkg >>= \deps -> 
       when (hasUnix deps) $ do
+        print pkg
         modifyMVar_ mvar $ \xs -> pure (pkg : xs))
     case result of
       Right _ -> pure ()
       Left (e :: SomeException) -> print e
   vals <- readMVar mvar
+  putStrLn $ show (length vals `div` length pkgs) ++ "% of hackage depends on unix" 
   writeFile "log" (show vals)
